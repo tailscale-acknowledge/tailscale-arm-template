@@ -154,8 +154,8 @@
                     {
                         "name": "tsRoutedSubnets",
                         "type": "Microsoft.Common.TextBox",
-                        "label": "tailscale Site ID (customer)",
-                        "toolTip": "The Site ID of the customer. 1-256"
+                        "label": "tailscale Site ID (customer in HEX format!)",
+                        "toolTip": "The Site ID of the customer in HEX format!"
                     }
                 ]
             },
