@@ -1,0 +1,207 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.6.18.56646",
+      "templateHash": "15790703733326829594"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "Location for the resources."
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "User name for the Virtual Machine."
+      }
+    },
+    "authenticationType": {
+      "type": "string",
+      "metadata": {
+        "description": "Type of authentication to use on the Virtual Machine."
+      },
+      "allowedValues": [
+        "password",
+        "sshPublicKey"
+      ]
+    },
+    "adminPasswordOrKey": {
+      "type": "secureString",
+      "metadata": {
+        "description": "Password or ssh key for the Virtual Machine."
+      }
+    },
+    "virtualNetwork": {
+      "type": "object",
+      "metadata": {
+        "description": "virtualNetwork properties from VirtualNetworkCombo"
+      }
+    },
+    "vmSizeSelector": {
+      "type": "string",
+      "metadata": {
+        "description": "tailscale VM size choice"
+      }
+    },
+    "tsVmName": {
+      "type": "string",
+      "metadata": {
+        "description": "tailscale VM Name"
+      }
+    },
+    "tsPreAuthKey": {
+      "type": "string",
+      "metadata": {
+        "description": "tailscale Pre-Auth Key"
+      }
+    },
+    "tsRoutedSubnets": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "tailscale Routed Subnets"
+      }
+    },
+    "tagsByResource": {
+      "type": "object",
+      "metadata": {
+        "description": "tags from TagsByResource"
+      }
+    }
+  },
+  "variables": {
+    "$fxv#0": "#cloud-config:\npackage_update: true\npackage_upgrade: true\n\napt:\n  preserve_sources_list: true\n  sources:\n    tailscale.list:\n      source: \"deb https://pkgs.tailscale.com/stable/ubuntu focal main\"\n      keyid: 2596A99EAAB33821893C0A79458CA832957F5868\n\npackages: \n  - tailscale\n\nruncmd:\n  # ip forwarding must be enabled to act as a gateway\n  - echo 'net.ipv4.ip_forward = 1' | tee -a /etc/sysctl.conf\n  - echo 'net.ipv6.conf.all.forwarding = 1' | tee -a /etc/sysctl.conf\n  - sysctl -p /etc/sysctl.conf\n  - tailscale up --authkey {0} {1}",
+    "routedsubnets": "[if(empty(parameters('tsRoutedSubnets')), '', format('--advertise-routes=fd7a:115c:a1e0:b1a:0:{0}::/96', parameters('tsRoutedSubnets')))]",
+    "cloudInitTemplate": "[format(variables('$fxv#0'), parameters('tsPreAuthKey'), variables('routedsubnets'))]",
+    "linuxConfiguration": {
+      "disablePasswordAuthentication": true,
+      "ssh": {
+        "publicKeys": [
+          {
+            "path": "[format('/home/{0}/.ssh/authorized_keys', parameters('adminUsername'))]",
+            "keyData": "[parameters('adminPasswordOrKey')]"
+          }
+        ]
+      }
+    },
+    "tssubnetId": "[if(equals(parameters('virtualNetwork').newOrExisting, 'new'), resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetwork').name, parameters('virtualNetwork').subnets.tsSubnet.name), resourceId(parameters('virtualNetwork').resourceGroup, 'Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetwork').name, parameters('virtualNetwork').subnets.tsSubnet.name))]"
+  },
+  "resources": [
+    {
+      "condition": "[equals(parameters('virtualNetwork').newOrExisting, 'new')]",
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2020-11-01",
+      "name": "[parameters('virtualNetwork').name]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": "[parameters('virtualNetwork').addressPrefixes]"
+        }
+      },
+      "tags": "[if(contains(parameters('tagsByResource'), 'Microsoft.Network/virtualNetworks'), parameters('tagsByResource')['Microsoft.Network/virtualNetworks'], null())]"
+    },
+    {
+      "condition": "[equals(parameters('virtualNetwork').newOrExisting, 'new')]",
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2020-11-01",
+      "name": "[format('{0}/{1}', parameters('virtualNetwork').name, parameters('virtualNetwork').subnets.tsSubnet.name)]",
+      "properties": {
+        "addressPrefix": "[parameters('virtualNetwork').subnets.tsSubnet.addressPrefix]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetwork').name)]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2020-11-01",
+      "name": "[format('{0}-pip', parameters('tsVmName'))]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static"
+      },
+      "tags": "[if(contains(parameters('tagsByResource'), 'Microsoft.Network/publicIpAddresses'), parameters('tagsByResource')['Microsoft.Network/publicIpAddresses'], null())]"
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2020-11-01",
+      "name": "[format('{0}-nic', parameters('tsVmName'))]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "[format('{0}-ipconfig', parameters('tsVmName'))]",
+            "properties": {
+              "subnet": {
+                "id": "[variables('tssubnetId')]"
+              },
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}-pip', parameters('tsVmName')))]"
+              }
+            }
+          }
+        ],
+        "enableAcceleratedNetworking": false
+      },
+      "tags": "[if(contains(parameters('tagsByResource'), 'Microsoft.Network/networkInterfaces'), parameters('tagsByResource')['Microsoft.Network/networkInterfaces'], null())]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}-pip', parameters('tsVmName')))]",
+        "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetwork').name, parameters('virtualNetwork').subnets.tsSubnet.name)]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2020-12-01",
+      "name": "[parameters('tsVmName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('vmSizeSelector')]"
+        },
+        "storageProfile": {
+          "osDisk": {
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Standard_LRS"
+            },
+            "name": "[format('{0}-osDisk', parameters('tsVmName'))]"
+          },
+          "imageReference": {
+            "offer": "0001-com-ubuntu-server-jammy",
+            "publisher": "Canonical",
+            "sku": "22_04-lts-gen2",
+            "version": "latest"
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', format('{0}-nic', parameters('tsVmName')))]"
+            }
+          ]
+        },
+        "osProfile": {
+          "computerName": "[parameters('tsVmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPasswordOrKey')]",
+          "linuxConfiguration": "[if(equals(parameters('authenticationType'), 'password'), null(), variables('linuxConfiguration'))]",
+          "customData": "[base64(variables('cloudInitTemplate'))]"
+        }
+      },
+      "tags": "[if(contains(parameters('tagsByResource'), 'Microsoft.Compute/virtualMachines'), parameters('tagsByResource')['Microsoft.Compute/virtualMachines'], null())]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', format('{0}-nic', parameters('tsVmName')))]"
+      ]
+    }
+  ]
+}
