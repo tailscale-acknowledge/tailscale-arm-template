@@ -36,13 +36,13 @@ This would result in the following NAT;
   <tr>
     <td>172.18.14.13/32</td>
     <td>fd7a:115c:a1e0:b1a:0:<b>0010</b>::/96</td>
-    <td><b>[</b>fd7a:115c:a1e0:b1a:0:0010:ffff:172.18.14.13<b>]</b></td>
+    <td><b>[</b>fd7a:115c:a1e0:b1a:0:0010:172.18.14.13<b>]</b></td>
     <td>fd7a:115c:a1e0:b1a:0:0010:ac12:0e0d/128</td>
   </tr>
   <tr>
     <td>10.20.41.0/24</td>
     <td>fd7a:115c:a1e0:b1a:0:<b>00C9</b>::/96</td>
-    <td>fd7a:115c:a1e0:b1a:0:00C9:ffff:10.20.41.0/120</td>
+    <td>fd7a:115c:a1e0:b1a:0:00C9:10.20.41.0/120</td>
     <td>fd7a:115c:a1e0:b1a:0:00C9:0a14:2900/120</td>
   </tr>
 </table>
