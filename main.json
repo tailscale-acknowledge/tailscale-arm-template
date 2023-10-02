@@ -63,7 +63,7 @@
     },
     "tsRoutedSubnets": {
       "type": "string",
-      "defaultValue": "",
+      "defaultValue": "1-256",
       "metadata": {
         "description": "tailscale Routed Subnets"
       }
