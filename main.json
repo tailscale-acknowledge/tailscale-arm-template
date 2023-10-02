@@ -76,7 +76,7 @@
     }
   },
   "variables": {
-    "$fxv#0": "#cloud-config:\npackage_update: true\npackage_upgrade: true\n\napt:\n  preserve_sources_list: true\n  sources:\n    tailscale.list:\n      source: \"deb https://pkgs.tailscale.com/stable/ubuntu focal main\"\n      keyid: 2596A99EAAB33821893C0A79458CA832957F5868\n\npackages: \n  - tailscale\n\nruncmd:\n  # ip forwarding must be enabled to act as a gateway\n  - echo 'net.ipv4.ip_forward = 1' | tee -a /etc/sysctl.conf\n  - echo 'net.ipv6.conf.all.forwarding = 1' | tee -a /etc/sysctl.conf\n  - sysctl -p /etc/sysctl.conf\n  - tailscale up --authkey {0} {1}",
+    "$fxv#0": "#cloud-config:\npackage_update: true\npackage_upgrade: true\n\napt:\n  preserve_sources_list: true\n  sources:\n    tailscale.list:\n      source: \"deb https://pkgs.tailscale.com/stable/ubuntu focal main\"\n      keyid: 2596A99EAAB33821893C0A79458CA832957F5868\n\npackages: \n  - tailscale\n\nruncmd:\n  # ip forwarding must be enabled to act as a gateway\n  - echo 'net.ipv4.ip_forward = 1' | tee -a /etc/sysctl.conf\n  - echo 'net.ipv6.conf.all.forwarding = 1' | tee -a /etc/sysctl.conf\n  - sysctl -p /etc/sysctl.conf\n  - tailscale debug via ('tsRoutedSubnets') 0.0.0.0/0 - tailscale up --authkey {0} {1}",
     "routedsubnets": "[if(empty(parameters('tsRoutedSubnets')), '', format('--advertise-routes=fd7a:115c:a1e0:b1a:0:{0}::/96', parameters('tsRoutedSubnets')))]",
     "cloudInitTemplate": "[format(variables('$fxv#0'), parameters('tsPreAuthKey'), variables('routedsubnets'))]",
     "linuxConfiguration": {
